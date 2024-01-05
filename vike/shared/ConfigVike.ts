@@ -46,6 +46,7 @@ type ConfigVikeResolved = {
   redirects: Record<string, string>
   trailingSlash: boolean
   disableUrlNormalization: boolean
+  native: string[]
 }
 
 type ConfigVikeUserProvided = {
@@ -157,4 +158,9 @@ type ConfigVikeUserProvided = {
    * @default false
    */
   standalone?: boolean
+
+  /** List of native dependencies.
+   *
+   */
+  native?: string[]
 }
