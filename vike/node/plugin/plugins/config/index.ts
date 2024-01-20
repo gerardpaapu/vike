@@ -29,7 +29,7 @@ async function getConfigVikPromise(vikeConfig: unknown, config: ResolvedConfig):
   const fromInlineCliConfig = ((config as Record<string, unknown>)._vike_cli ?? {}) as ConfigVikeUserProvided
   const fromStemPackages = await findConfigVikeFromStemPackages(config.root)
 
-  const configs = [fromInlineCliConfig, fromPluginOptions, ...fromStemPackages, fromViteConfig].filter(Boolean)
+  const configs = [fromInlineCliConfig, fromPluginOptions, ...fromStemPackages, fromViteConfig]
 
   const extensions = resolveExtensions(configs, config)
 
