@@ -7,19 +7,13 @@ Pre-rendering is automatically initiated when running `$ vite build`. (If <Link 
 Instead, we can programmatically initiate pre-rendering:
 
 ```js
-// vite.config.js
-
-import vike from 'vike/plugin'
+// vike.config.js
 
 export default {
-  plugins: [
-    vike({
-      prerender: {
-        // Stop `$ vite build` from initiating pre-rendering
-        disableAutoRun: true
-      }
-    })
-  ]
+  prerender: {
+    // Stop `$ vite build` from initiating pre-rendering
+    disableAutoRun: true
+  }
 }
 ```
 

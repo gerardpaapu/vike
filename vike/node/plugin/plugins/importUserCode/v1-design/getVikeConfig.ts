@@ -1,7 +1,7 @@
 export { getVikeConfig }
 export { reloadVikeConfig }
 export { vikeConfigDependencies }
-export { isVikeConfigFile }
+export { isVikeFile }
 
 export type { InterfaceValueFile }
 
@@ -16,7 +16,6 @@ import {
   arrayIncludes,
   assertIsNotProductionRuntime,
   getMostSimilar,
-  joinEnglish,
   lowerFirst,
   mergeCumulativeValues,
   getOutDirs,
@@ -80,7 +79,8 @@ import {
   ImportedFilesLoaded,
   loadConfigFile,
   loadImportedFile,
-  loadValueFile
+  loadValueFile,
+  findVikeConfigFile
 } from './getVikeConfig/loadFileAtConfigTime.js'
 import { clearFilesEnvMap, resolveImport } from './getVikeConfig/resolveImportPath.js'
 import { resolveFilePathRelativeToUserRootDir } from './getVikeConfig/resolveFilePath.js'
@@ -181,11 +181,12 @@ async function loadInterfaceFiles(
   isDev: boolean,
   extensions: ExtensionResolved[]
 ): Promise<InterfaceFilesByLocationId> {
-  const plusFiles = await findPlusFiles(userRootDir, outDirRoot, isDev, extensions)
+  const userFiles = await findUserFiles(userRootDir, outDirRoot, isDev, extensions)
   const configFiles: FilePathResolved[] = []
   const valueFiles: FilePathResolved[] = []
-  plusFiles.forEach((f) => {
-    if (getConfigName(f.filePathAbsoluteFilesystem) === 'config') {
+  userFiles.forEach((f) => {
+    const fp = f.filePathAbsoluteFilesystem
+    if (getConfigName(fp) === 'config' || isVikeConfigFile(fp)) {
       configFiles.push(f)
     } else {
       valueFiles.push(f)
@@ -493,32 +494,35 @@ async function getGlobalConfigs(
 
   // Validate that global configs live in global interface files
   {
-    const interfaceFilesGlobalPaths: string[] = []
+    let vikeConfigFilePathToShowToUser: string | null = null
     objectEntries(interfaceFilesGlobal).forEach(([locationId, interfaceFiles]) => {
       assert(isGlobalLocation(locationId, locationIds))
-      interfaceFiles.forEach(({ filePath: { filePathRelativeToUserRootDir } }) => {
-        if (filePathRelativeToUserRootDir) {
-          interfaceFilesGlobalPaths.push(filePathRelativeToUserRootDir)
+      interfaceFiles.forEach((interfaceFile) => {
+        if (isVikeConfigFile(interfaceFile.filePath.filePathAbsoluteFilesystem)) {
+          assert(isGlobalLocation(locationId, locationIds))
+          assert(locationId === '/')
+          assert(interfaceFile.filePath.filePathRelativeToUserRootDir)
+          assert(vikeConfigFilePathToShowToUser === null)
+          vikeConfigFilePathToShowToUser = interfaceFile.filePath.filePathToShowToUser
         }
       })
     })
-    const globalPaths = Array.from(new Set(interfaceFilesGlobalPaths.map((p) => path.posix.dirname(p))))
     objectEntries(interfaceFilesByLocationId).forEach(([locationId, interfaceFiles]) => {
       interfaceFiles.forEach((interfaceFile) => {
+        if (isVikeConfigFile(interfaceFile.filePath.filePathAbsoluteFilesystem)) return
         Object.keys(interfaceFile.fileExportsByConfigName).forEach((configName) => {
-          if (!isGlobalLocation(locationId, locationIds) && isGlobalConfig(configName)) {
-            assertUsage(
-              false,
-              [
-                `${interfaceFile.filePath.filePathToShowToUser} defines the config ${pc.cyan(
-                  configName
-                )} which is global:`,
-                globalPaths.length
-                  ? `define ${pc.cyan(configName)} in ${joinEnglish(globalPaths, 'or')} instead`
-                  : `create a global config (e.g. /pages/+config.js) and define ${pc.cyan(configName)} there instead`
-              ].join(' ')
-            )
-          }
+          if (!isGlobalConfig(configName)) return
+          const errMsg = [
+            `${interfaceFile.filePath.filePathToShowToUser} wrongfully defines a global config (${pc.cyan(
+              configName
+            )}):`,
+            vikeConfigFilePathToShowToUser
+              ? `define ${pc.cyan(configName)} in ${vikeConfigFilePathToShowToUser} instead`
+              : `create vike.config.js and define ${pc.cyan(configName)} there instead`,
+            'https://vike.dev/config'
+          ].join(' ')
+          assertUsage(isGlobalLocation(locationId, locationIds), errMsg)
+          assertWarning(false, errMsg, { onlyOnce: true })
         })
       })
     })
@@ -544,17 +548,6 @@ async function getGlobalConfigs(
         pageConfigGlobal.configValueSources[configName] = [configValueSource]
       } else {
         assert('value' in configValueSource)
-        if (configName === 'prerender' && typeof configValueSource.value === 'boolean') return
-        const { filePathToShowToUser } = configValueSource.definedAt
-        assertWarning(
-          false,
-          `Being able to define config ${pc.cyan(
-            configName
-          )} in ${filePathToShowToUser} is experimental and will likely be removed. Define the config ${pc.cyan(
-            configName
-          )} in Vike's Vite plugin options instead.`,
-          { onlyOnce: true }
-        )
         globalVikeConfig[configName] = configValueSource.value
       }
     })
@@ -985,17 +978,44 @@ function getComputed(configValueSources: ConfigValueSources, configDefinitions: 
   return configValuesComputed
 }
 
-async function findPlusFiles(
+async function findUserFiles(
   userRootDir: string,
   outDirRoot: string,
   isDev: boolean,
   extensions: ExtensionResolved[]
 ): Promise<FilePathResolved[]> {
-  const files = await crawlPlusFiles(userRootDir, outDirRoot, isDev)
+  const userFiles: FilePathResolved[] = []
+  {
+    const found = findVikeConfigFile(userRootDir)
+    if (found) {
+      const { vikeConfigFilePath } = found
+      // After the Vike CLI is implemented, we'll be able to:
+      //  - Only crawl the directory where vite.config.js lives
+      //  - Only crawl up the filesystem tree if there is no vite.config.js
+      //  - Remove this assertUsage()
+      assertUsage(
+        found.userRootDir === userRootDir,
+        [
+          'vite.config.js and vike.config.js need to live in the same directory, but they live in different directories:',
+          ...[
+            // prettier-ignore
+            vikeConfigFilePath.filePathAbsoluteFilesystem,
+            path.posix.join(userRootDir, 'vite.config.{js,ts}')
+          ].map((f) => ` - ${f}`)
+        ].join('\n')
+      )
+      userFiles.push(vikeConfigFilePath)
+    }
+  }
 
-  const plusFiles: FilePathResolved[] = files.map(({ filePathRelativeToUserRootDir }) =>
-    resolveFilePathRelativeToUserRootDir(filePathRelativeToUserRootDir, userRootDir)
-  )
+  {
+    const plusFiles = await crawlPlusFiles(userRootDir, outDirRoot, isDev)
+    userFiles.push(
+      ...plusFiles.map(({ filePathRelativeToUserRootDir }) =>
+        resolveFilePathRelativeToUserRootDir(filePathRelativeToUserRootDir, userRootDir)
+      )
+    )
+  }
 
   // TODO/v1-release: remove
   extensions.forEach((extension) => {
@@ -1004,7 +1024,7 @@ async function findPlusFiles(
       assert(pageConfigDistFile.importPath.includes('+'))
       assert(path.posix.basename(pageConfigDistFile.importPath).startsWith('+'))
       const { importPath, filePath } = pageConfigDistFile
-      plusFiles.push({
+      userFiles.push({
         filePathRelativeToUserRootDir: null,
         filePathAbsoluteVite: importPath,
         filePathAbsoluteFilesystem: filePath,
@@ -1014,22 +1034,33 @@ async function findPlusFiles(
     })
   })
 
-  return plusFiles
+  return userFiles
 }
 
+function isVikeConfigFile(filePath: string): boolean {
+  const fileName = getFileName(filePath)
+  if (!fileName) return false
+  const parts = fileName.split('.')
+  return parts[0] === 'vike' && parts[1] === 'config'
+}
 function getConfigName(filePath: string): string | null {
-  assertPosixPath(filePath)
-  if (isTmpFile(filePath)) return null
-  const fileName = path.posix.basename(filePath)
+  const fileName = getFileName(filePath)
+  if (!fileName) return null
   // assertNoUnexpectedPlusSign(filePath, fileName)
-  const basename = fileName.split('.')[0]!
-  if (!basename.startsWith('+')) {
+  const baseName = fileName.split('.')[0]!
+  if (!baseName.startsWith('+')) {
     return null
   } else {
-    const configName = basename.slice(1)
+    const configName = baseName.slice(1)
     assertUsage(configName !== '', `${filePath} Invalid filename ${fileName}`)
     return configName
   }
+}
+function getFileName(filePath: string) {
+  assertPosixPath(filePath)
+  if (isTmpFile(filePath)) return null
+  const fileName = path.posix.basename(filePath)
+  return fileName
 }
 /* https://github.com/vikejs/vike/issues/1407
 function assertNoUnexpectedPlusSign(filePath: string, fileName: string) {
@@ -1124,8 +1155,8 @@ function determineIsErrorPage(routeFilesystem: string) {
   return routeFilesystem.split('/').includes('_error')
 }
 
-function isVikeConfigFile(filePath: string): boolean {
-  return !!getConfigName(filePath)
+function isVikeFile(filePath: string): boolean {
+  return !!getConfigName(filePath) || isVikeConfigFile(filePath)
 }
 
 function getConfigValues(
