@@ -109,7 +109,7 @@ type InterfaceValueFile = InterfaceFileCommons & {
 type ConfigName = string
 type InterfaceFilesByLocationId = Record<LocationId, InterfaceFile[]>
 
-type VikeConfig = {
+type VikeConfigObject = {
   pageConfigs: PageConfigBuildTime[]
   pageConfigGlobal: PageConfigGlobalBuildTime
   globalVikeConfig: Record<string, unknown>
@@ -117,7 +117,7 @@ type VikeConfig = {
 
 let devServerIsCorrupt = false
 let wasConfigInvalid: boolean | null = null
-let vikeConfigPromise: Promise<VikeConfig> | null = null
+let vikeConfigPromise: Promise<VikeConfigObject> | null = null
 const vikeConfigDependencies: Set<string> = new Set()
 function reloadVikeConfig(userRootDir: string, outDirRoot: string, extensions: ExtensionResolved[]) {
   vikeConfigDependencies.clear()
@@ -160,7 +160,7 @@ async function getVikeConfig(
   isDev: boolean,
   tolerateInvalidConfig = false,
   extensions?: ExtensionResolved[]
-): Promise<VikeConfig> {
+): Promise<VikeConfigObject> {
   const { outDirRoot } = getOutDirs(config)
   const userRootDir = config.root
   if (!vikeConfigPromise) {
@@ -307,9 +307,9 @@ async function loadVikeConfig_withErrorHandling(
   isDev: boolean,
   extensions: ExtensionResolved[],
   tolerateInvalidConfig: boolean
-): Promise<VikeConfig> {
+): Promise<VikeConfigObject> {
   let hasError = false
-  let ret: VikeConfig | undefined
+  let ret: VikeConfigObject | undefined
   let err: unknown
   try {
     ret = await loadVikeConfig(userRootDir, outDirRoot, isDev, extensions)
@@ -334,7 +334,7 @@ async function loadVikeConfig_withErrorHandling(
       if (!tolerateInvalidConfig) {
         devServerIsCorrupt = true
       }
-      const dummyData: VikeConfig = {
+      const dummyData: VikeConfigObject = {
         pageConfigs: [],
         pageConfigGlobal: {
           configValueSources: {}
@@ -350,7 +350,7 @@ async function loadVikeConfig(
   outDirRoot: string,
   isDev: boolean,
   extensions: ExtensionResolved[]
-): Promise<VikeConfig> {
+): Promise<VikeConfigObject> {
   const interfaceFilesByLocationId = await loadInterfaceFiles(userRootDir, outDirRoot, isDev, extensions)
 
   const importedFilesLoaded: ImportedFilesLoaded = {}
