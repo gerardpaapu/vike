@@ -5,15 +5,5 @@ export default {
   build: {
     outDir: `${__dirname}/../../test/misc/dist/nested`
   },
-  plugins: [
-    react(),
-    vike({
-      prerender: {
-        noExtraDir: true
-      },
-      redirects: {
-        '/mail': 'mailto:some@example.com'
-      }
-    })
-  ]
+  plugins: [react(), vike()]
 }
