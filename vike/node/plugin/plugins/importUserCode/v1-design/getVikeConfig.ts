@@ -375,7 +375,8 @@ async function loadVikeConfig(
           getInterfaceFileList(interfaceFilesRelevant).map(async (interfaceFile) => {
             if (!interfaceFile.isValueFile) return
             const { configName } = interfaceFile
-            if (isGlobalConfig(configName)) return
+            const configValue = interfaceFile.fileExportsByConfigName[configName]?.configValue
+            if (isGlobalConfig(configName, configValue)) return
             const configDef = getConfigDefinition(
               configDefinitions,
               configName,
@@ -510,8 +511,8 @@ async function getGlobalConfigs(
     objectEntries(interfaceFilesByLocationId).forEach(([locationId, interfaceFiles]) => {
       interfaceFiles.forEach((interfaceFile) => {
         if (isVikeConfigFile(interfaceFile.filePath.filePathAbsoluteFilesystem)) return
-        Object.keys(interfaceFile.fileExportsByConfigName).forEach((configName) => {
-          if (!isGlobalConfig(configName)) return
+        Object.entries(interfaceFile.fileExportsByConfigName).forEach(([configName, { configValue }]) => {
+          if (!isGlobalConfig(configName, configValue)) return
           const errMsg = [
             `${interfaceFile.filePath.filePathToShowToUser} wrongfully defines a global config (${pc.cyan(
               configName
@@ -1318,8 +1319,8 @@ function isConfigEnv(configDef: ConfigDefinitionInternal, configName: string): b
   }
   return !!configEnv.config
 }
-function isGlobalConfig(configName: string): configName is ConfigNameGlobal {
-  if (configName === 'prerender') return false
+function isGlobalConfig(configName: string, configValue: undefined | unknown): configName is ConfigNameGlobal {
+  if (configName === 'prerender' && !isObject(configValue)) return false
   const configNamesGlobal = getConfigNamesGlobal()
   return arrayIncludes(configNamesGlobal, configName)
 }
