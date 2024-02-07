@@ -56,7 +56,7 @@ function plugin(vikeConfig?: ConfigVikeUserProvided): any {
     extractExportNamesPlugin(),
     suppressRollupWarning(),
     setGlobalContext(),
-    ...importBuild(vikeConfig),
+    ...importBuild(),
     extensionsAssets(),
     baseUrls(vikeConfig),
     envVarsPlugin(),
