@@ -25,9 +25,8 @@ type ExtensionResolved = {
   pageConfigsSrcDir: null | string
   assetsDir: null | string
 }
-type ReloadStrategy = 'fast' | 'full'
-type ServerUserProvided = string | { entry: string | { index: string; [name: string]: string }; reload: ReloadStrategy }
-type ServerResolved = undefined | { entry: { index: string; [name: string]: string }; reload: ReloadStrategy }
+type ServerUserProvided = string | { entry: string | { index: string; [name: string]: string } }
+type ServerResolved = undefined | { entry: { index: string; [name: string]: string } }
 
 type ConfigVikeResolved = {
   prerender:
