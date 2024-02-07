@@ -304,7 +304,7 @@ function getGlobs(
       varNameLocals.push(varNameLocal)
       const globIncludePath = `'${getGlobPath(globRoot.includeDir, fileType)}'`
       const globExcludePath = globRoot.excludeDir ? `'!${getGlobPath(globRoot.excludeDir, fileType)}'` : null
-      const globOptions = JSON.stringify({ eager: isEager, query: `?${query}` })
+      const globOptions = JSON.stringify({ eager: isEager, as: query })
       assert(globOptions.startsWith('{"eager":true') || globOptions.startsWith('{"eager":false'))
       const globPaths = globExcludePath ? `[${globIncludePath}, ${globExcludePath}]` : `[${globIncludePath}]`
       const globLine = `const ${varNameLocal} = import.meta.glob(${globPaths}, ${globOptions});`
