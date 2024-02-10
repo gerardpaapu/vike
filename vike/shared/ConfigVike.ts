@@ -46,6 +46,8 @@ type ConfigVikeResolved = {
   trailingSlash: boolean
   disableUrlNormalization: boolean
   native: string[]
+  server: ServerResolved
+  standalone: boolean
 }
 
 type ConfigVikeUserProvided = {

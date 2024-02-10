@@ -11,6 +11,7 @@ import { resolveBase } from './resolveBase.js'
 import { getVikeConfig } from '../importUserCode/v1-design/getVikeConfig.js'
 import pc from '@brillout/picocolors'
 import { nativeDependecies } from '../../shared/nativeDependencies.js'
+import { resolveServerConfig } from './resolveServer.js'
 
 function resolveVikeConfig(vikeConfig: unknown): Plugin {
   return {
@@ -46,6 +47,8 @@ async function getConfigVikPromise(vikeConfig: unknown, config: ResolvedConfig):
 
   const { baseServer, baseAssets } = resolveBase(configs, config)
 
+  const server = resolveServerConfig(fromPluginOptions)
+
   const configVike: ConfigVikeResolved = {
     disableAutoFullBuild: pickFirst(configs.map((c) => c.disableAutoFullBuild)) ?? null,
     extensions,
@@ -56,7 +59,9 @@ async function getConfigVikPromise(vikeConfig: unknown, config: ResolvedConfig):
     redirects: merge(configs.map((c) => c.redirects)) ?? {},
     disableUrlNormalization: pickFirst(configs.map((c) => c.disableUrlNormalization)) ?? false,
     trailingSlash: pickFirst(configs.map((c) => c.trailingSlash)) ?? false,
-    native: unique([...(configs.flatMap((c) => c.native).filter(Boolean) ?? []), ...nativeDependecies]) as string[]
+    native: unique([...(configs.flatMap((c) => c.native).filter(Boolean) ?? []), ...nativeDependecies]) as string[],
+    server,
+    standalone: fromPluginOptions.standalone ?? false
   }
 
   return configVike
@@ -74,6 +79,7 @@ function resolvePrerenderOptions(configs: ConfigVikeUserProvided[]): ConfigVikeR
     disableAutoRun: pickFirst(configsPrerender.map((c) => c.disableAutoRun)) ?? false
   }
 }
+
 
 function isObject<T>(p: T | boolean | undefined): p is T {
   return typeof p === 'object'
