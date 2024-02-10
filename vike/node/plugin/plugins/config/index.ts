@@ -26,10 +26,9 @@ function resolveVikeConfig(vikeConfig: unknown): Plugin {
 async function getConfigVikPromise(vikeConfig: unknown, config: ResolvedConfig): Promise<ConfigVikeResolved> {
   const fromPluginOptions = (vikeConfig ?? {}) as ConfigVikeUserProvided
   const fromViteConfig = ((config as Record<string, unknown>).vike ?? {}) as ConfigVikeUserProvided
-  const fromInlineCliConfig = ((config as Record<string, unknown>)._vike_cli ?? {}) as ConfigVikeUserProvided
   const fromStemPackages = await findConfigVikeFromStemPackages(config.root)
 
-  const configs = [fromInlineCliConfig, fromPluginOptions, ...fromStemPackages, fromViteConfig]
+  const configs = [fromPluginOptions, ...fromStemPackages, fromViteConfig]
 
   const extensions = resolveExtensions(configs, config)
 
